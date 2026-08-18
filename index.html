@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Hockey - Modo Diablo</title>
+
+  <style>
+    :root {
+      --player: #00f7ff;
+      --bot: #ff2bd6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #010208;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      color: #ffffff;
+    }
+
+    .game-shell {
+      position: relative;
+      width: min(96vw, 1220px);
+      height: min(94vh, 780px);
+      min-height: 480px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 24px;
+      background: #020712;
+      box-shadow:
+        0 0 28px rgba(0, 220, 255, 0.18),
+        0 0 100px rgba(0, 220, 255, 0.08),
+        inset 0 0 55px rgba(255, 255, 255, 0.03);
+      transition:
+        background 0.8s ease,
+        border-color 0.8s ease,
+        box-shadow 0.8s ease;
+    }
+
+    .game-shell.diablo {
+      border-color: rgba(255, 48, 76, 0.85);
+      background: #100309;
+      box-shadow:
+        0 0 30px rgba(255, 30, 65, 0.42),
+        0 0 110px rgba(150, 0, 30, 0.3),
+        inset 0 0 90px rgba(255, 0, 40, 0.09);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: none;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .hud {
+      position: absolute;
+      z-index: 5;
+      top: 17px;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      transform: translateX(-50%);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .score {
+      min-width: 78px;
+      padding: 7px 16px 9px;
+      border: 1px solid currentColor;
+      border-radius: 12px;
+      background: rgba(2, 6, 16, 0.72);
+      font-size: clamp(25px, 4vw, 43px);
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      text-shadow: 0 0 13px currentColor;
+      box-shadow: 0 0 19px currentColor;
+    }
+
+    .player-score {
+      color: var(--player);
+    }
+
+    .bot-score {
+      color: var(--bot);
+    }
+
+    .versus {
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      opacity: 0.7;
+    }
+
+    .mode-badge {
+      position: absolute;
+      z-index: 5;
+      top: 22px;
+      left: 50%;
+      padding: 8px 17px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.82);
+      background: rgba(4, 8, 17, 0.72);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      opacity: 0;
+      transform: translate(-50%, -13px);
+      transition:
+        opacity 0.45s ease,
+        transform 0.45s ease,
+        color 0.45s ease,
+        border-color 0.45s ease;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .mode-badge.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    .diablo .mode-badge {
+      color: #ff526b;
+      border-color: #ff294c;
+      text-shadow: 0 0 13px #ff294c;
+      box-shadow: 0 0 22px rgba(255, 32, 63, 0.65);
+    }
+
+    .restart {
+      position: absolute;
+      right: 19px;
+      bottom: 17px;
+      z-index: 6;
+      padding: 11px 17px;
+      border: 1px solid #ffffff;
+      border-radius: 10px;
+      color: #ffffff;
+      background: rgba(3, 7, 17, 0.78);
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.3);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .restart:hover {
+      color: var(--player);
+      border-color: var(--player);
+      box-shadow: 0 0 22px var(--player);
+      transform: translateY(-2px);
+    }
+
+    .restart:active {
+      transform: scale(0.97);
+    }
+
+    .status {
+      position: absolute;
+      left: 50%;
+      bottom: 21px;
+      z-index: 4;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.56);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .diablo .status {
+      color: rgba(255, 116, 128, 0.75);
+    }
+
+    @media (max-width: 600px) {
+      .game-shell {
+        width: 100vw;
+        height: 100vh;
+        min-height: 0;
+        border: 0;
+        border-radius: 0;
+      }
+
+      .hud {
+        top: 12px;
+      }
+
+      .mode-badge {
+        top: 67px;
+        max-width: 90vw;
+        white-space: nowrap;
+        font-size: 9px;
+      }
+
+      .restart {
+        right: 12px;
+        bottom: 13px;
+      }
+
+      .status {
+        bottom: 17px;
+        font-size: 9px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main id="gameShell" class="game-shell">
+    <canvas id="game"></canvas>
+
+    <div class="hud">
+      <div id="playerScore" class="score player-score">0</div>
+      <div class="versus">VS</div>
+      <div id="botScore" class="score bot-score">0</div>
+    </div>
+
+    <div id="modeBadge" class="mode-badge">
+      MODO DIABLO · CADA GOL VALE x3
+    </div>
+
+    <button id="restart" class="restart" type="button">
+      REINICIAR
+    </button>
+
+    <div class="status">NEON AIR HOCKEY</div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d", {
+        alpha: false,
+        desynchronized: true
+      });
+
+      const shell = document.getElementById("gameShell");
+      const playerScoreElement = document.getElementById("playerScore");
+      const botScoreElement = document.getElementById("botScore");
+      const modeBadge = document.getElementById("modeBadge");
+      const restartButton = document.getElementById("restart");
+
+      const TAU = Math.PI * 2;
+      const FIXED_STEP = 1 / 120;
+      const MAX_FRAME_TIME = 0.08;
+      const DIABLO_TRIGGER = 5;
+      const WIN_SCORE = 11;
+
+      const palettes = [
+        ["#00f7ff", "#ff2bd6"],
+        ["#39ff14", "#ff1493"],
+        ["#ffe600", "#7a5cff"],
+        ["#00ffb7", "#ff4d00"],
+        ["#29b6ff", "#ff00a8"],
+        ["#b7ff00", "#00d9ff"],
+        ["#ff5cf4", "#00ff91"],
+        ["#ff3131", "#39d9ff"]
+      ];
+
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let field = {};
+      let accumulator = 0;
+      let previousTime = 0;
+      let serveTimer = 0;
+      let flash = 0;
+      let shake = 0;
+      let particles = [];
+      let trails = [];
+      let audioContext = null;
+
+      const input = {
+        pointerId: null,
+        active: false,
+        x: 0,
+        y: 0,
+        targetX: 0,
+        targetY: 0
+      };
+
+      const state = {
+        playerScore: 0,
+        botScore: 0,
+        diablo: false,
+        gameOver: false,
+        winner: "",
+        playerColor: palettes[0][0],
+        botColor: palettes[0][1],
+
+        player: {
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          radius: 35
+        },
+
+        bot: {
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          radius: 35
+        },
+
+        puck: {
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          radius: 15,
+          rotation: 0
+        }
+      };
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function random(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function centerX() {
+        return (field.left + field.right) / 2;
+      }
+
+      function centerY() {
+        return (field.top + field.bottom) / 2;
+      }
+
+      function applyColors() {
+        document.documentElement.style.setProperty(
+          "--player",
+          state.playerColor
+        );
+
+        document.documentElement.style.setProperty(
+          "--bot",
+          state.botColor
+        );
+      }
+
+      function choosePalette() {
+        const palette =
+          palettes[Math.floor(Math.random() * palettes.length)];
+
+        state.playerColor = palette[0];
+        state.botColor = palette[1];
+
+        applyColors();
+      }
+
+      function updateModeVisuals() {
+        shell.classList.toggle("diablo", state.diablo);
+        modeBadge.classList.toggle("visible", state.diablo);
+      }
+
+      function resize() {
+        const rect = shell.getBoundingClientRect();
+
+        width = rect.width;
+        height = rect.height;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        field = {
+          left: Math.max(22, width * 0.035),
+          right: Math.min(width - 22, width * 0.965),
+          top: Math.max(80, height * 0.105),
+          bottom: Math.min(height - 58, height * 0.91)
+        };
+
+        const paddleRadius = clamp(
+          Math.min(width, height) * 0.057,
+          25,
+          42
+        );
+
+        const puckRadius = clamp(
+          Math.min(width, height) * 0.024,
+          11,
+          18
+        );
+
+        state.player.radius = paddleRadius;
+        state.bot.radius = paddleRadius;
+        state.puck.radius = puckRadius;
+
+        if (!input.active) {
+          input.targetX = centerX();
+          input.targetY = field.bottom - paddleRadius * 1.8;
+        }
+
+        const middleX = centerX();
+        const middleY = centerY();
+
+        state.player.x = clamp(
+          state.player.x || middleX,
+          field.left + paddleRadius,
+          middleX - paddleRadius * 0.18
+        );
+
+        state.player.y = clamp(
+          state.player.y || field.bottom - paddleRadius * 1.8,
+          middleY + paddleRadius * 0.18,
+          field.bottom - paddleRadius
+        );
+
+        state.bot.x = clamp(
+          state.bot.x || middleX,
+          middleX + paddleRadius * 0.18,
+          field.right - paddleRadius
+        );
+
+        state.bot.y = clamp(
+          state.bot.y || field.top + paddleRadius * 1.7,
+          field.top + paddleRadius,
+          middleY - paddleRadius * 0.18
+        );
+
+        if (!state.puck.x) {
+          resetPuck(1);
+        }
+      }
+
+      function resetPuck(direction) {
+        const angle = random(-0.46, 0.46);
+        const speed =
+          Math.min(width, height) *
+          (state.diablo ? 0.77 : 0.66);
+
+        state.puck.x = centerX();
+        state.puck.y = centerY();
+        state.puck.vx = Math.sin(angle) * speed;
+        state.puck.vy = Math.cos(angle) * speed * direction;
+        state.puck.rotation = 0;
+
+        serveTimer = 0.72;
+      }
+
+      function newGame() {
+        choosePalette();
+
+        state.playerScore = 0;
+        state.botScore = 0;
+        state.diablo = false;
+        state.gameOver = false;
+        state.winner = "";
+
+        playerScoreElement.textContent = "0";
+        botScoreElement.textContent = "0";
+
+        particles = [];
+        trails = [];
+        flash = 0;
+        shake = 0;
+
+        updateModeVisuals();
+        resize();
+
+        state.player.x = centerX();
+        state.player.y = field.bottom - state.player.radius * 1.8;
+        state.player.vx = 0;
+        state.player.vy = 0;
+
+        state.bot.x = centerX();
+        state.bot.y = field.top + state.bot.radius * 1.7;
+        state.bot.vx = 0;
+        state.bot.vy = 0;
+
+        input.targetX = centerX();
+        input.targetY = field.bottom - state.player.radius * 1.8;
+
+        resetPuck(1);
+      }
+
+      function activateDiablo() {
+        if (state.diablo) return;
+
+        state.diablo = true;
+        updateModeVisuals();
+
+        flash = 0.8;
+        shake = 0.35;
+
+        createBurst(
+          centerX(),
+          centerY(),
+          "#ff263f",
+          130
+        );
+
+        playDiablo();
+      }
+
+      function updatePointer(event) {
+        const rect = canvas.getBoundingClientRect();
+
+        const scaleX = width / rect.width;
+        const scaleY = height / rect.height;
+
+        const pointerX =
+          (event.clientX - rect.left) * scaleX;
+
+        const pointerY =
+          (event.clientY - rect.top) * scaleY;
+
+        input.x = pointerX;
+        input.y = pointerY;
+        input.targetX = pointerX;
+        input.targetY = pointerY;
+        input.active = true;
+      }
+
+      function handlePointerDown(event) {
+        initAudio();
+
+        input.pointerId = event.pointerId;
+        input.active = true;
+
+        try {
+          canvas.setPointerCapture(event.pointerId);
+        } catch (error) {
+          input.pointerId = null;
+        }
+
+        updatePointer(event);
+      }
+
+      function handlePointerMove(event) {
+        if (
+          input.pointerId !== null &&
+          event.pointerId !== input.pointerId
+        ) {
+          return;
+        }
+
+        updatePointer(event);
+      }
+
+      function handlePointerRelease(event) {
+        if (
+          input.pointerId !== null &&
+          event.pointerId !== input.pointerId
+        ) {
+          return;
+        }
+
+        input.pointerId = null;
+        input.active = false;
+
+        try {
+          if (canvas.hasPointerCapture(event.pointerId)) {
+            canvas.releasePointerCapture(event.pointerId);
+          }
+        } catch (error) {
+          input.pointerId = null;
+        }
+      }
+
+      function updatePlayer(dt) {
+        const player = state.player;
+        const radius = player.radius;
+        const middleX = centerX();
+        const middleY = centerY();
+
+        const targetX = clamp(
+          input.targetX,
+          field.left + radius,
+          middleX - radius * 0.18
+        );
+
+        const targetY = clamp(
+          input.targetY,
+          middleY + radius * 0.18,
+          field.bottom - radius
+        );
+
+        const distanceX = targetX - player.x;
+        const distanceY = targetY - player.y;
+        const distance = Math.hypot(distanceX, distanceY);
+
+        const followStrength = state.diablo ? 31 : 27;
+        const response = 1 - Math.exp(-dt * followStrength);
+
+        const desiredVelocityX =
+          distanceX / Math.max(dt, 0.001);
+
+        const desiredVelocityY =
+          distanceY / Math.max(dt, 0.001);
+
+        player.vx +=
+          (desiredVelocityX - player.vx) *
+          clamp(response * 1.8, 0, 1);
+
+        player.vy +=
+          (desiredVelocityY - player.vy) *
+          clamp(response * 1.8, 0, 1);
+
+        if (distance < 2.5) {
+          player.vx *= Math.pow(0.0001, dt);
+          player.vy *= Math.pow(0.0001, dt);
+        }
+
+        const maximumSpeed =
+          Math.min(width, height) *
+          (state.diablo ? 2.15 : 1.9);
+
+        const currentSpeed = Math.hypot(
+          player.vx,
+          player.vy
+        );
+
+        if (currentSpeed > maximumSpeed) {
+          player.vx =
+            player.vx / currentSpeed * maximumSpeed;
+
+          player.vy =
+            player.vy / currentSpeed * maximumSpeed;
+        }
+
+        player.x += player.vx * dt;
+        player.y += player.vy * dt;
+
+        player.x = clamp(
+          player.x,
+          field.left + radius,
+          middleX - radius * 0.18
+        );
+
+        player.y = clamp(
+          player.y,
+          middleY + radius * 0.18,
+          field.bottom - radius
+        );
+
+        if (
+          player.x <= field.left + radius ||
+          player.x >= middleX - radius * 0.18
+        ) {
+          player.vx *= -0.12;
+        }
+
+        if (
+          player.y <= middleY + radius * 0.18 ||
+          player.y >= field.bottom - radius
+        ) {
+          player.vy *= -0.12;
+        }
+      }
+
+      function predictPuckY(targetX) {
+        const puck = state.puck;
+        const top = field.top + puck.radius;
+        const bottom = centerY() - puck.radius;
+        const range = bottom - top;
+
+        if (puck.vx <= 0 || range <= 0) {
+          return centerY();
+        }
+
+        const time = Math.max(
+          0,
+          (targetX - puck.x) / puck.vx
+        );
+
+        let y = puck.y + puck.vy * time - top;
+        const period = range * 2;
+
+        y = ((y % period) + period) % period;
+
+        if (y > range) {
+          y = period - y;
+        }
+
+        return y + top;
+      }
+
+      function updateBot(dt) {
+        const bot = state.bot;
+        const puck = state.puck;
+        const middleX = centerX();
+        const middleY = centerY();
+
+        const defending =
+          puck.vy < 0 ||
+          puck.y < middleY ||
+          puck.x > middleX;
+
+        let targetX;
+        let targetY;
+
+        if (defending) {
+          targetX = predictPuckY(
+            field.right - bot.radius * 1.45
+          );
+
+          targetY = puck.y - puck.vy * 0.045;
+
+          targetX = clamp(
+            targetX,
+            middleX + bot.radius * 0.2,
+            field.right - bot.radius
+          );
+
+          targetY = clamp(
+            targetY,
+            field.top + bot.radius,
+            middleY - bot.radius * 0.2
+          );
+        } else {
+          targetX =
+            middleX +
+            Math.sin(performance.now() * 0.0013) *
+            width *
+            0.07;
+
+          targetY = field.top + bot.radius * 1.65;
+        }
+
+        const response = 1 - Math.exp(
+          -dt * (state.diablo ? 18 : 15)
+        );
+
+        const maximumStep =
+          Math.min(width, height) *
+          (state.diablo ? 1.68 : 1.5) *
+          dt;
+
+        const dx = clamp(
+          (targetX - bot.x) * response,
+          -maximumStep,
+          maximumStep
+        );
+
+        const dy = clamp(
+          (targetY - bot.y) * response,
+          -maximumStep,
+          maximumStep
+        );
+
+        bot.vx = dx / Math.max(dt, 0.001);
+        bot.vy = dy / Math.max(dt, 0.001);
+
+        bot.x += dx;
+        bot.y += dy;
+
+        bot.x = clamp(
+          bot.x,
+          middleX + bot.radius * 0.2,
+          field.right - bot.radius
+        );
+
+        bot.y = clamp(
+          bot.y,
+          field.top + bot.radius,
+          middleY - bot.radius * 0.2
+        );
+      }
+
+      function collidePaddle(paddle, isPlayer) {
+        const puck = state.puck;
+        const dx = puck.x - paddle.x;
+        const dy = puck.y - paddle.y;
+        const minimumDistance =
+          puck.radius + paddle.radius;
+
+        const distanceSquared = dx * dx + dy * dy;
+
+        if (
+          distanceSquared >=
+          minimumDistance * minimumDistance
+        ) {
+          return;
+        }
+
+        const distance = Math.sqrt(distanceSquared) || 0.001;
+        const nx = dx / distance;
+        const ny = dy / distance;
+        const overlap = minimumDistance - distance;
+
+        puck.x += nx * overlap;
+        puck.y += ny * overlap;
+
+        const relativeVelocity =
+          (puck.vx - paddle.vx) * nx +
+          (puck.vy - paddle.vy) * ny;
+
+        if (relativeVelocity < 0) {
+          const impulse = -relativeVelocity * 1.96;
+
+          puck.vx += nx * impulse;
+          puck.vy += ny * impulse;
+        }
+
+        puck.vx += paddle.vx * 0.2;
+        puck.vy += paddle.vy * 0.2;
+
+        const speed = Math.hypot(
+          puck.vx,
+          puck.vy
+        );
+
+        const minimumSpeed =
+          Math.min(width, height) *
+          (state.diablo ? 0.68 : 0.55);
+
+        const maximumSpeed =
+          Math.min(width, height) *
+          (state.diablo ? 2.0 : 1.72);
+
+        const finalSpeed = clamp(
+          Math.max(speed, minimumSpeed),
+          minimumSpeed,
+          maximumSpeed
+        );
+
+        puck.vx =
+          puck.vx / Math.max(speed, 0.001) *
+          finalSpeed;
+
+        puck.vy =
+          puck.vy / Math.max(speed, 0.001) *
+          finalSpeed;
+
+        if (
+          isPlayer &&
+          puck.vy > -minimumSpeed * 0.16
+        ) {
+          puck.vy =
+            -Math.abs(puck.vy) -
+            minimumSpeed * 0.2;
+        }
+
+        if (
+          !isPlayer &&
+          puck.vy < minimumSpeed * 0.16
+        ) {
+          puck.vy =
+            Math.abs(puck.vy) +
+            minimumSpeed * 0.2;
+        }
+
+        createBurst(
+          puck.x,
+          puck.y,
+          isPlayer
+            ? state.playerColor
+            : state.botColor,
+          state.diablo ? 18 : 12
+        );
+
+        playHit();
+      }
+
+      function scorePoint(winner) {
+        if (state.gameOver) return;
+
+        const points = state.diablo ? 3 : 1;
+
+        if (winner === "player") {
+          state.playerScore += points;
+          playerScoreElement.textContent =
+            state.playerScore;
+
+          createBurst(
+            field.left + 12,
+            centerY(),
+            state.playerColor,
+            state.diablo ? 48 : 30
+          );
+        } else {
+          state.botScore += points;
+          botScoreElement.textContent =
+            state.botScore;
+
+          createBurst(
+            field.right - 12,
+            centerY(),
+            state.botColor,
+            state.diablo ? 48 : 30
+          );
+        }
+
+        flash = state.diablo ? 0.65 : 0.4;
+        shake = state.diablo ? 0.28 : 0.18;
+
+        playScore();
+
+        if (
+          state.playerScore >= WIN_SCORE ||
+          state.botScore >= WIN_SCORE
+        ) {
+          state.gameOver = true;
+
+          state.winner =
+            state.playerScore > state.botScore
+              ? "JUGADOR"
+              : "BOT";
+
+          createBurst(
+            centerX(),
+            centerY(),
+            state.winner === "JUGADOR"
+              ? state.playerColor
+              : state.botColor,
+            110
+          );
+        } else {
+          resetPuck(winner === "player" ? -1 : 1);
+        }
+      }
+
+      function physicsStep(dt) {
+        updatePlayer(dt);
+        updateBot(dt);
+
+        if (serveTimer > 0 || state.gameOver) {
+          serveTimer = Math.max(0, serveTimer - dt);
+          return;
+        }
+
+        const puck = state.puck;
+        const radius = puck.radius;
+        const middleX = centerX();
+
+        const friction = Math.pow(0.9995, dt * 60);
+
+        puck.x += puck.vx * dt;
+        puck.y += puck.vy * dt;
+        puck.vx *= friction;
+        puck.vy *= friction;
+        puck.rotation += dt * (puck.vx + puck.vy) * 0.006;
+
+        if (puck.x - radius <= field.left) {
+          puck.x = field.left + radius;
+          puck.vx = Math.abs(puck.vx);
+          playWall();
+        }
+
+        if (puck.x + radius >= field.right) {
+          puck.x = field.right - radius;
+          puck.vx = -Math.abs(puck.vx);
+          playWall();
+        }
+
+        if (puck.y - radius <= field.top) {
+          if (
+            puck.x > middleX - width * 0.11 &&
+            puck.x < middleX + width * 0.11
+          ) {
+            scorePoint("player");
+            return;
+          }
+
+          puck.y = field.top + radius;
+          puck.vy = Math.abs(puck.vy);
+          playWall();
+        }
+
+        if (puck.y + radius >= field.bottom) {
+          if (
+            puck.x > middleX - width * 0.11 &&
+            puck.x < middleX + width * 0.11
+          ) {
+            scorePoint("bot");
+            return;
+          }
+
+          puck.y = field.bottom - radius;
+          puck.vy = -Math.abs(puck.vy);
+          playWall();
+        }
+
+        collidePaddle(state.player, true);
+        collidePaddle(state.bot, false);
+
+        trails.push({
+          x: puck.x,
+          y: puck.y,
+          alpha: state.diablo ? 0.62 : 0.48
+        });
+
+        if (trails.length > 24) {
+          trails.shift();
+        }
+      }
+
+      function update(deltaTime) {
+        deltaTime = Math.min(
+          deltaTime,
+          MAX_FRAME_TIME
+        );
+
+        accumulator += deltaTime;
+
+        while (accumulator >= FIXED_STEP) {
+          physicsStep(FIXED_STEP);
+          accumulator -= FIXED_STEP;
+        }
+
+        flash = Math.max(0, flash - deltaTime);
+        shake = Math.max(0, shake - deltaTime);
+
+        updateParticles(deltaTime);
+
+        if (
+          !state.diablo &&
+          (
+            state.playerScore >= DIABLO_TRIGGER ||
+            state.botScore >= DIABLO_TRIGGER
+          )
+        ) {
+          activateDiablo();
+        }
+      }
+
+      function drawGlowLine(
+        x1,
+        y1,
+        x2,
+        y2,
+        color,
+        blur,
+        alpha,
+        lineWidth
+      ) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = blur;
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function roundedRectPath(x, y, w, h, radius) {
+        const r = Math.min(radius, w / 2, h / 2);
+
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function drawBackground() {
+        const gradient = ctx.createRadialGradient(
+          width / 2,
+          height / 2,
+          0,
+          width / 2,
+          height / 2,
+          Math.max(width, height) * 0.74
+        );
+
+        if (state.diablo) {
+          gradient.addColorStop(0, "#3a101b");
+          gradient.addColorStop(0.5, "#170811");
+          gradient.addColorStop(1, "#050107");
+        } else {
+          gradient.addColorStop(0, "#102a45");
+          gradient.addColorStop(0.55, "#050b18");
+          gradient.addColorStop(1, "#01030a");
+        }
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.globalAlpha = state.diablo ? 0.11 : 0.1;
+        ctx.strokeStyle = state.diablo
+          ? "#9d2538"
+          : "#3e72a4";
+        ctx.lineWidth = 1;
+
+        for (let x = 0; x < width; x += 34) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+
+        for (let y = 0; y < height; y += 34) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        if (state.diablo) {
+          ctx.save();
+          ctx.globalAlpha = 0.16;
+          ctx.strokeStyle = "#ff304e";
+          ctx.lineWidth = 2;
+
+          for (
+            let i = -height;
+            i < width + height;
+            i += 105
+          ) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i + height, height);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+      }
+
+      function drawArena() {
+        const middleX = centerX();
+        const middleY = centerY();
+        const goalWidth = width * 0.22;
+        const goalDepth = 18;
+
+        ctx.save();
+
+        roundedRectPath(
+          field.left,
+          field.top,
+          field.right - field.left,
+          field.bottom - field.top,
+          22
+        );
+
+        ctx.clip();
+
+        const iceGradient = ctx.createLinearGradient(
+          0,
+          field.top,
+          0,
+          field.bottom
+        );
+
+        if (state.diablo) {
+          iceGradient.addColorStop(
+            0,
+            "rgba(54, 9, 19, 0.96)"
+          );
+
+          iceGradient.addColorStop(
+            0.5,
+            "rgba(26, 5, 13, 0.9)"
+          );
+
+          iceGradient.addColorStop(
+            1,
+            "rgba(50, 8, 19, 0.96)"
+          );
+        } else {
+          iceGradient.addColorStop(
+            0,
+            "rgba(8, 28, 52, 0.96)"
+          );
+
+          iceGradient.addColorStop(
+            0.5,
+            "rgba(8, 20, 39, 0.86)"
+          );
+
+          iceGradient.addColorStop(
+            1,
+            "rgba(8, 27, 48, 0.96)"
+          );
+        }
+
+        ctx.fillStyle = iceGradient;
+
+        ctx.fillRect(
+          field.left,
+          field.top,
+          field.right - field.left,
+          field.bottom - field.top
+        );
+
+        ctx.globalAlpha = state.diablo ? 0.18 : 0.12;
+        ctx.strokeStyle = state.diablo
+          ? "#ff4056"
+          : "#5ccfff";
+
+        for (
+          let x = field.left - field.bottom;
+          x < field.right;
+          x += 75
+        ) {
+          ctx.beginPath();
+          ctx.moveTo(x, field.bottom);
+          ctx.lineTo(
+            x + field.bottom - field.top,
+            field.top
+          );
+          ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+
+        drawGlowLine(
+          field.left,
+          middleY,
+          field.right,
+          middleY,
+          state.diablo ? "#ff5366" : "#ffffff",
+          state.diablo ? 19 : 10,
+          state.diablo ? 0.7 : 0.48,
+          1.5
+        );
+
+        ctx.strokeStyle = state.diablo
+          ? "rgba(255, 85, 103, 0.44)"
+          : "rgba(255, 255, 255, 0.3)";
+
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.arc(
+          middleX,
+          middleY,
+          Math.min(width, height) * 0.12,
+          0,
+          TAU
+        );
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(middleX, middleY, 4, 0, TAU);
+        ctx.fillStyle = state.diablo
+          ? "#ff415a"
+          : "#ffffff";
+        ctx.shadowColor = state.diablo
+          ? "#ff273f"
+          : "#ffffff";
+        ctx.shadowBlur = 16;
+        ctx.fill();
+
+        ctx.restore();
+
+        roundedRectPath(
+          field.left,
+          field.top,
+          field.right - field.left,
+          field.bottom - field.top,
+          22
+        );
+
+        ctx.strokeStyle = state.diablo
+          ? "#ff3d57"
+          : "#65dfff";
+        ctx.lineWidth = 2;
+        ctx.shadowColor = state.diablo
+          ? "#ff183b"
+          : "#00c8ff";
+        ctx.shadowBlur = state.diablo ? 30 : 22;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.fillStyle = "rgba(2, 5, 14, 0.93)";
+
+        ctx.shadowColor = state.diablo
+          ? "#ff173d"
+          : state.botColor;
+        ctx.shadowBlur = state.diablo ? 30 : 22;
+
+        ctx.fillRect(
+          middleX - goalWidth / 2,
+          field.top - goalDepth / 2,
+          goalWidth,
+          goalDepth
+        );
+
+        ctx.shadowColor = state.diablo
+          ? "#ff173d"
+          : state.playerColor;
+        ctx.shadowBlur = state.diablo ? 30 : 22;
+
+        ctx.fillRect(
+          middleX - goalWidth / 2,
+          field.bottom - goalDepth / 2,
+          goalWidth,
+          goalDepth
+        );
+
+        ctx.restore();
+
+        drawGlowLine(
+          middleX - goalWidth / 2,
+          field.top,
+          middleX + goalWidth / 2,
+          field.top,
+          state.diablo
+            ? "#ff334d"
+            : state.botColor,
+          state.diablo ? 28 : 18,
+          0.95,
+          3
+        );
+
+        drawGlowLine(
+          middleX - goalWidth / 2,
+          field.bottom,
+          middleX + goalWidth / 2,
+          field.bottom,
+          state.diablo
+            ? "#ff334d"
+            : state.playerColor,
+          state.diablo ? 28 : 18,
+          0.95,
+          3
+        );
+
+        if (state.diablo) {
+          drawGothicSymbols();
+        }
+      }
+
+      function drawGothicSymbols() {
+        const middleX = centerX();
+        const middleY = centerY();
+        const color = "#ff5265";
+
+        ctx.save();
+        ctx.globalAlpha = 0.38;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 1.5;
+
+        for (const side of [-1, 1]) {
+          const x = middleX + side * width * 0.31;
+          const y = middleY;
+
+          ctx.beginPath();
+          ctx.moveTo(x, y - 28);
+          ctx.lineTo(x, y + 30);
+          ctx.moveTo(x - 13, y - 17);
+          ctx.lineTo(x + 13, y - 17);
+          ctx.moveTo(x - 10, y - 4);
+          ctx.lineTo(x + 10, y - 4);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(x, y + 42, 9, 0, Math.PI, true);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function drawPaddle(paddle, color) {
+        const radius = paddle.radius;
+
+        const gradient = ctx.createRadialGradient(
+          paddle.x - radius * 0.3,
+          paddle.y - radius * 0.35,
+          radius * 0.1,
+          paddle.x,
+          paddle.y,
+          radius * 1.3
+        );
+
+        gradient.addColorStop(0, "#ffffff");
+        gradient.addColorStop(0.08, color);
+        gradient.addColorStop(0.58, color);
+        gradient.addColorStop(1, "#050813");
+
+        ctx.save();
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = state.diablo ? 37 : 28;
+
+        ctx.beginPath();
+        ctx.arc(
+          paddle.x,
+          paddle.y,
+          radius,
+          0,
+          TAU
+        );
+        ctx.fill();
+
+        ctx.globalAlpha = 0.78;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.shadowBlur = 10;
+
+        ctx.beginPath();
+        ctx.arc(
+          paddle.x,
+          paddle.y,
+          radius * 0.72,
+          0,
+          TAU
+        );
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.38;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = radius * 0.2;
+
+        ctx.beginPath();
+        ctx.arc(
+          paddle.x,
+          paddle.y,
+          radius * 0.92,
+          0.2,
+          Math.PI * 1.35
+        );
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawPuck() {
+        const puck = state.puck;
+
+        for (let i = 0; i < trails.length; i++) {
+          const trail = trails[i];
+          const alpha =
+            trail.alpha * (i / trails.length);
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = state.diablo
+            ? "#ffedf0"
+            : "#ffffff";
+          ctx.shadowColor = state.diablo
+            ? "#ff263f"
+            : "#ffffff";
+          ctx.shadowBlur = state.diablo ? 28 : 20;
+
+          ctx.beginPath();
+          ctx.arc(
+            trail.x,
+            trail.y,
+            puck.radius *
+              (0.4 + i / trails.length * 0.35),
+            0,
+            TAU
+          );
+          ctx.fill();
+
+          ctx.restore();
+
+          trail.alpha *= 0.9;
+        }
+
+        const gradient = ctx.createRadialGradient(
+          puck.x - puck.radius * 0.35,
+          puck.y - puck.radius * 0.35,
+          1,
+          puck.x,
+          puck.y,
+          puck.radius * 1.4
+        );
+
+        if (state.diablo) {
+          gradient.addColorStop(0, "#ffffff");
+          gradient.addColorStop(0.25, "#ffdce1");
+          gradient.addColorStop(0.68, "#ff5265");
+          gradient.addColorStop(1, "#8b0c27");
+        } else {
+          gradient.addColorStop(0, "#ffffff");
+          gradient.addColorStop(0.25, "#dffcff");
+          gradient.addColorStop(0.68, "#72f6ff");
+          gradient.addColorStop(1, "#117caa");
+        }
+
+        ctx.save();
+        ctx.translate(puck.x, puck.y);
+        ctx.rotate(puck.rotation);
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = state.diablo
+          ? "#ff263f"
+          : "#8fffff";
+        ctx.shadowBlur = state.diablo ? 38 : 30;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, puck.radius, 0, TAU);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.74;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+
+        ctx.beginPath();
+        ctx.arc(
+          0,
+          0,
+          puck.radius * 0.67,
+          0,
+          TAU
+        );
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.84;
+        ctx.fillStyle = "#ffffff";
+
+        ctx.beginPath();
+        ctx.arc(
+          -puck.radius * 0.3,
+          -puck.radius * 0.3,
+          puck.radius * 0.16,
+          0,
+          TAU
+        );
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      function createBurst(x, y, color, amount) {
+        for (let i = 0; i < amount; i++) {
+          const angle = Math.random() * TAU;
+          const speed = random(
+            35,
+            state.diablo ? 340 : 260
+          );
+
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: random(0.28, 0.8),
+            maxLife: 0.8,
+            size: random(
+              1.2,
+              state.diablo ? 5.5 : 4.5
+            ),
+            color
+          });
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const particle = particles[i];
+
+          particle.life -= dt;
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+
+          particle.vx *= Math.pow(0.08, dt);
+          particle.vy *= Math.pow(0.08, dt);
+
+          if (particle.life <= 0) {
+            particles.splice(i, 1);
+          }
+        }
+      }
+
+      function drawParticles() {
+        for (const particle of particles) {
+          const alpha = clamp(
+            particle.life / particle.maxLife,
+            0,
+            1
+          );
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = state.diablo ? 19 : 14;
+
+          ctx.beginPath();
+          ctx.arc(
+            particle.x,
+            particle.y,
+            particle.size * alpha,
+            0,
+            TAU
+          );
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      function drawOverlay() {
+        if (flash > 0) {
+          ctx.save();
+          ctx.globalAlpha = flash * 0.25;
+          ctx.fillStyle = state.diablo
+            ? "#ff2947"
+            : "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+          ctx.restore();
+        }
+
+        if (!state.gameOver) return;
+
+        const winnerColor =
+          state.winner === "JUGADOR"
+            ? state.playerColor
+            : state.botColor;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 3, 12, 0.72)";
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = winnerColor;
+        ctx.shadowColor = winnerColor;
+        ctx.shadowBlur = 34;
+        ctx.font = `900 ${clamp(
+          width * 0.065,
+          34,
+          72
+        )}px Arial`;
+
+        ctx.fillText(
+          state.winner === "JUGADOR"
+            ? "VICTORIA"
+            : "DERROTA",
+          centerX(),
+          centerY() - 25
+        );
+
+        ctx.shadowBlur = 9;
+        ctx.fillStyle = "#ffffff";
+        ctx.font = `700 ${clamp(
+          width * 0.018,
+          12,
+          18
+        )}px Arial`;
+
+        ctx.fillText(
+          "PULSA REINICIAR PARA VOLVER A JUGAR",
+          centerX(),
+          centerY() + 42
+        );
+
+        ctx.restore();
+      }
+
+      function render() {
+        ctx.save();
+
+        if (shake > 0) {
+          const amount = shake * 18;
+
+          ctx.translate(
+            random(-amount, amount),
+            random(-amount, amount)
+          );
+        }
+
+        drawBackground();
+        drawArena();
+        drawParticles();
+        drawPaddle(state.bot, state.botColor);
+        drawPaddle(state.player, state.playerColor);
+        drawPuck();
+        drawOverlay();
+
+        ctx.restore();
+      }
+
+      function animationLoop(timestamp) {
+        const deltaTime =
+          Math.min(timestamp - previousTime, 80) / 1000 || 0;
+
+        previousTime = timestamp;
+
+        update(deltaTime);
+        render();
+
+        requestAnimationFrame(animationLoop);
+      }
+
+      function initAudio() {
+        if (!audioContext) {
+          const AudioContext =
+            window.AudioContext ||
+            window.webkitAudioContext;
+
+          if (AudioContext) {
+            audioContext = new AudioContext();
+          }
+        }
+
+        if (
+          audioContext &&
+          audioContext.state === "suspended"
+        ) {
+          audioContext.resume();
+        }
+      }
+
+      function sound(
+        frequency,
+        duration,
+        type,
+        volume
+      ) {
+        if (!audioContext) return;
+
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        const now = audioContext.currentTime;
+
+        oscillator.type = type;
+
+        oscillator.frequency.setValueAtTime(
+          frequency,
+          now
+        );
+
+        oscillator.frequency.exponentialRampToValueAtTime(
+          Math.max(45, frequency * 0.55),
+          now + duration
+        );
+
+        gain.gain.setValueAtTime(volume, now);
+
+        gain.gain.exponentialRampToValueAtTime(
+          0.001,
+          now + duration
+        );
+
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+
+        oscillator.start(now);
+        oscillator.stop(now + duration);
+      }
+
+      function playHit() {
+        sound(190, 0.045, "square", 0.018);
+      }
+
+      function playWall() {
+        sound(110, 0.035, "triangle", 0.012);
+      }
+
+      function playScore() {
+        sound(420, 0.1, "sine", 0.025);
+
+        setTimeout(() => {
+          sound(680, 0.16, "sine", 0.025);
+        }, 65);
+      }
+
+      function playDiablo() {
+        sound(95, 0.32, "sawtooth", 0.035);
+
+        setTimeout(() => {
+          sound(185, 0.42, "square", 0.028);
+        }, 120);
+
+        setTimeout(() => {
+          sound(330, 0.5, "sine", 0.025);
+        }, 250);
+      }
+
+      canvas.addEventListener(
+        "pointerdown",
+        handlePointerDown,
+        { passive: true }
+      );
+
+      canvas.addEventListener(
+        "pointermove",
+        handlePointerMove,
+        { passive: true }
+      );
+
+      canvas.addEventListener(
+        "pointerup",
+        handlePointerRelease,
+        { passive: true }
+      );
+
+      canvas.addEventListener(
+        "pointercancel",
+        handlePointerRelease,
+        { passive: true }
+      );
+
+      canvas.addEventListener(
+        "lostpointercapture",
+        () => {
+          input.pointerId = null;
+        },
+        { passive: true }
+      );
+
+      restartButton.addEventListener(
+        "click",
+        () => {
+          initAudio();
+          newGame();
+        }
+      );
+
+      window.addEventListener("resize", resize);
+
+      window.addEventListener("blur", () => {
+        input.pointerId = null;
+        input.active = false;
+      });
+
+      choosePalette();
+      resize();
+      newGame();
+      requestAnimationFrame(animationLoop);
+    })();
+  </script>
+</body>
+</html>
